@@ -1,0 +1,987 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next pisces use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="aop,proxy," />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="简述JDK 动态代理是一种基于反射的运行时逻辑切入。实现简单，但只作用于接口级别。以下示例将一步步演示其实现过程并分析其实现特点及应用场景。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JDK 动态代理机制">
+<meta property="og:url" content="http://yoursite.com/2017/02/06/JDK-proxy/index.html">
+<meta property="og:site_name" content="Jeffor's Blog">
+<meta property="og:description" content="简述JDK 动态代理是一种基于反射的运行时逻辑切入。实现简单，但只作用于接口级别。以下示例将一步步演示其实现过程并分析其实现特点及应用场景。">
+<meta property="og:image" content="http://yoursite.com/images/JDK-proxy.png">
+<meta property="og:updated_time" content="2017-02-06T09:48:02.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="JDK 动态代理机制">
+<meta name="twitter:description" content="简述JDK 动态代理是一种基于反射的运行时逻辑切入。实现简单，但只作用于接口级别。以下示例将一步步演示其实现过程并分析其实现特点及应用场景。">
+<meta name="twitter:image" content="http://yoursite.com/images/JDK-proxy.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Pisces',
+    sidebar: {"position":"left","display":"post"},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"搜索关键字","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/02/06/JDK-proxy/"/>
+
+
+
+
+
+  <title> JDK 动态代理机制 | Jeffor's Blog </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?c92debb9eea057198f6ebfc80da6a25a";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-meta ">
+  
+
+  <div class="custom-logo-site-title">
+    <a href="/"  class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <span class="site-title">Jeffor's Blog</span>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+    
+      <p class="site-subtitle">Coding day & night ...</p>
+    
+</div>
+
+<div class="site-nav-toggle">
+  <button>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+    <span class="btn-bar"></span>
+  </button>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tree"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br />
+            
+            搜索
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup">
+ <span class="search-icon fa fa-search"></span>
+ <input type="text" id="local-search-input">
+ <div id="local-search-result"></div>
+ <span class="popup-btn-close">close</span>
+</div>
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+  <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/02/06/JDK-proxy/">
+
+  <span style="display:none" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <meta itemprop="name" content="Jeffor">
+    <meta itemprop="description" content="">
+    <meta itemprop="image" content="https://avatars0.githubusercontent.com/u/8755395?v=3&u=8fdbb608a85e62a44c253f15c93266b4c2c3d480&s=100">
+  </span>
+
+  <span style="display:none" itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+    <meta itemprop="name" content="Jeffor's Blog">
+    <span style="display:none" itemprop="logo" itemscope itemtype="http://schema.org/ImageObject">
+      <img style="display:none;" itemprop="url image" alt="Jeffor's Blog" src="">
+    </span>
+  </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                JDK 动态代理机制
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2017-02-06T17:01:53+08:00">
+                2017-02-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <a href="/2017/02/06/JDK-proxy/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count ds-thread-count" data-thread-key="2017/02/06/JDK-proxy/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+
+          
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="简述"><a href="#简述" class="headerlink" title="简述"></a>简述</h2><p><strong>JDK 动态代理是一种<code>基于反射</code>的<code>运行时</code>逻辑切入。实现简单，但只作用于<code>接口级别</code>。以下示例将一步步演示其实现过程并分析其实现特点及应用场景。</strong></p>
+<a id="more"></a>
+<hr>
+<h2 id="一、java-动态代理实现简述"><a href="#一、java-动态代理实现简述" class="headerlink" title="一、java 动态代理实现简述"></a>一、java 动态代理实现简述</h2><h3 id="UML-类图描述"><a href="#UML-类图描述" class="headerlink" title="- UML 类图描述:"></a>- UML 类图描述:</h3><p><img src="/images/JDK-proxy.png" alt="JDK-proxy"></p>
+<ul>
+<li>类图分析:<ol>
+<li>从类图关系可以看出，<code>代理逻辑(ProxyHandler)</code>和<code>业务逻辑(BusinessImpl)</code>在定义时是相互独立的。</li>
+<li>代理对象是由<code>Proxy.newProxyInstance()</code> 方法生成, 该方法强依赖于 <code>代理逻辑实例(InvocationHandler实例对象)</code> 和 <code>被代理业务接口(IBusiness)</code>。</li>
+</ol>
+</li>
+</ul>
+<blockquote>
+<p>类图总结:<br> 通过分析我们可以得出代理对象的创建必须依赖具体代理逻辑的定义和被代理接口的定义。创建代理的过程可以分为如下几步:</p>
+<ol>
+<li>定义并明确需要被代理的业务接口;</li>
+<li>实现 <code>InvocationHandler</code> 接口，创建代理逻辑实例类;</li>
+<li>通过 <code>Proxy.newProxyInstance()</code> 方法创建具体代理对象</li>
+</ol>
+<p><strong>需要注意的是 <code>InvocationHandler</code> 实例类也依赖具体的业务对象，因为在代理进行方法调用时必须明确自己代理的目标对象是什么。</strong></p>
+</blockquote>
+<hr>
+<h2 id="二、JDK-动态代理样例实现"><a href="#二、JDK-动态代理样例实现" class="headerlink" title="二、JDK 动态代理样例实现"></a>二、JDK 动态代理样例实现</h2><h3 id="定义业务接口和业务实现类"><a href="#定义业务接口和业务实现类" class="headerlink" title="- 定义业务接口和业务实现类"></a>- 定义业务接口和业务实现类</h3><p>业务接口和实现类完全根据业务需求进行定义和实现，这里只做简单 <strong>demo</strong> 演示，故只是实现了一个简介的 <strong>doBusiness</strong> 方法:</p>
+<ol>
+<li><p>业务接口:</p>
+ <figure class="highlight zephir"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * 业务接口</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">IBusiness</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 业务方法</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> business 业务参数</div><div class="line">     * <span class="doctag">@return</span> 执行成功返回 true, 失败返回 false</div><div class="line">     * <span class="doctag">@throws</span> IllegalArgumentException 参数异常时抛出</div><div class="line">     */</div><div class="line">    <span class="keyword">public</span> <span class="keyword">Boolean</span> doBusiness(String business) throws IllegalArgumentException;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>业务实例类:</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">import</span> org.apache.commons.lang3.Validate;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * 业务细节实现类</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">BusinessImpl</span> <span class="keyword">implements</span> <span class="title">IBusiness</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 业务方法</div><div class="line">     *</div><div class="line">     * <span class="doctag">@param</span> business 业务参数</div><div class="line">     * <span class="doctag">@return</span> 执行成功返回 true, 失败返回 false</div><div class="line">     * <span class="doctag">@throws</span> IllegalArgumentException 参数异常时抛出</div><div class="line">     */</div><div class="line">    <span class="function"><span class="keyword">public</span> Boolean <span class="title">doBusiness</span><span class="params">(</span></span></div><div class="line">            String business) <span class="keyword">throws</span> IllegalArgumentException &#123;</div><div class="line"></div><div class="line">        Validate.notBlank(business);                        <span class="comment">// 参数校验</span></div><div class="line">        System.out.println(<span class="string">"Do business: "</span> + business);     <span class="comment">// 业务逻辑</span></div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;                                        <span class="comment">// 业务返回</span></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h3 id="代理逻辑定义-InvocationHandler实现"><a href="#代理逻辑定义-InvocationHandler实现" class="headerlink" title="- 代理逻辑定义(InvocationHandler实现)"></a>- 代理逻辑定义(InvocationHandler实现)</h3><p>代理逻辑区别于普通业务逻辑，他可以是基于框架功能的抽象，也可以是更泛化的业务逻辑抽象，但是他的功能应该是明确的: 代理的存在一方面让具体业务实例在进行业务操作时更加纯粹(干净), 另外也使抽象逻辑的管理更加统一。</p>
+<p>常见的代理逻辑如: <code>调用日志记录</code>，<code>监控打点</code>，<code>会话管理</code>，<code>资源回收</code> 等。这里我们只做简单的打印实现（主要是方便观察效果 ^^）:</p>
+<pre><code><figure class="highlight processing"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">import</span> java.lang.reflect.InvocationHandler;</div><div class="line"><span class="keyword">import</span> java.lang.reflect.Method;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * 代理操作类</div><div class="line"> *</div><div class="line"> * 其作用是定义具体的代理逻辑</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> class ProxyHandler implements InvocationHandler &#123;</div><div class="line"></div><div class="line">    <span class="keyword">private</span> <span class="keyword">Object</span> businessObject;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 该案例通过构造函数设置被代理对象(可选)</div><div class="line">     */</div><div class="line">    <span class="keyword">public</span> ProxyHandler(<span class="keyword">Object</span> businessObject) &#123;</div><div class="line">        <span class="keyword">this</span>.businessObject = businessObject;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="comment">/**</span></div><div class="line">     * 具体代理逻辑切入实现</div><div class="line">     *</div><div class="line">     * 可以实现的功能:</div><div class="line">     *</div><div class="line">     * 1. 逻辑织入(调用前后增加非业务逻辑)</div><div class="line">     *</div><div class="line">     * 2. 控制调用姿势(根据上下文方法控制调用方式)</div><div class="line">     *</div><div class="line">     * 3. 返回值和异常控制</div><div class="line">     *</div><div class="line">     * @param proxy  代理对象</div><div class="line">     * @param method 被调用的业务接口方法</div><div class="line">     * @param args   被调用业务接口方法的参数</div><div class="line">     */</div><div class="line">    @Override</div><div class="line">    <span class="keyword">public</span> <span class="keyword">Object</span> invoke(<span class="keyword">Object</span> proxy, Method method, <span class="keyword">Object</span>[] args) <span class="keyword">throws</span> Throwable &#123;</div><div class="line">        System.out.<span class="built_in">println</span>(<span class="string">"Do something before method"</span>);</div><div class="line">        <span class="keyword">Object</span> result = businessObject == <span class="keyword">null</span> ? <span class="keyword">null</span> : method.invoke(businessObject, args);</div><div class="line">        System.out.<span class="built_in">println</span>(<span class="string">"Do something after method"</span>);</div><div class="line">        <span class="keyword">return</span> result;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</code></pre><blockquote>
+<p>可以看出代理逻辑的实现还是比较简单清晰的，这里做了被调方法在调用前后的操作(打印)，方法调用时的判断操作以及返回值的传递操作。不难发现代理对调用的控制相当全面，他直接决定了方法是否真正调用。</p>
+<p><strong>需要注意的是</strong>: 因为基于反射的method方法调用必须依赖具体执行对象作为参数，所以调用逻辑在实现时也需要依赖具体的业务实例。（本例中在构造函数中引入实例引用，当然也可以以set方法的的形式传入，这样还可以达到意想不到的效果哦 ^ ^ )</p>
+</blockquote>
+<h3 id="代理对象的创建和使用-Proxy-newProxyInstance"><a href="#代理对象的创建和使用-Proxy-newProxyInstance" class="headerlink" title="- 代理对象的创建和使用(Proxy.newProxyInstance())"></a>- 代理对象的创建和使用(Proxy.newProxyInstance())</h3><p>豪爽的我直接上代码:</p>
+<pre><code><figure class="highlight haxe"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"></div><div class="line"><span class="keyword">import</span> java.lang.reflect.Proxy;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"> * JDK 动态代场景理测试</div><div class="line"> */</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ProxyTest</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="keyword">public</span> <span class="keyword">static</span> void main(<span class="keyword">String</span>... args) &#123;</div><div class="line"></div><div class="line">        BusinessImpl business = <span class="keyword">new</span> <span class="type">BusinessImpl</span>();                 <span class="comment">// 业务对象实例</span></div><div class="line">        ProxyHandler proxyHandler = <span class="keyword">new</span> <span class="type">ProxyHandler</span>(business);     <span class="comment">// 代理逻辑执行器对象</span></div><div class="line"></div><div class="line">        <span class="comment">/**创建代理对象*/</span></div><div class="line">        IBusiness businessProxy = (IBusiness) Proxy.<span class="keyword">new</span><span class="type">ProxyInstance</span>(</div><div class="line">                business.getClass().getClassLoader(),</div><div class="line">                <span class="keyword">new</span> <span class="type">Class</span>[]&#123;IBusiness.class&#125;,</div><div class="line">                proxyHandler);</div><div class="line"></div><div class="line"></div><div class="line">        businessProxy.doBusiness(<span class="string">"business"</span>);    <span class="comment">// 处理业务</span></div><div class="line"></div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</code></pre><p>寥寥几行, 不要太简单！！代理对象的创建只需三个参数:</p>
+<ol>
+<li>被代理对象的类加载器;</li>
+<li>被代理的接口列表;</li>
+<li>刚刚定义的代理逻辑实例对象;</li>
+</ol>
+<p>接下来让我们看看执行效果:</p>
+<pre><code><figure class="highlight oxygene"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">Do</span> something before <span class="function"><span class="keyword">method</span></span></div><div class="line"><span class="title">Do</span> <span class="title">business</span>: business</div><div class="line"><span class="keyword">Do</span> something after <span class="function"><span class="keyword">method</span></span></div></pre></td></tr></table></figure>
+</code></pre><p>哈哈~ 代理逻辑已经完美执行!</p>
+<hr>
+<h2 id="三、JDK-动态代理特性分析"><a href="#三、JDK-动态代理特性分析" class="headerlink" title="三、JDK 动态代理特性分析"></a>三、JDK 动态代理特性分析</h2><p>上面已经说过，代理的存在一方面让具体业务实例在进行业务操作时更加纯粹(干净), 另外也使抽象逻辑的管理更加统一。需要指出的是 <code>JDK 动态代理</code> 只是众多代理实现方式中的一种，如在<code>spring</code>框架中，其AOP实现就综合了 <code>JDK 动态代理</code> 和 <code>CGLIB 代理</code> 。接下来让我们总结一下 <code>JDK 动态代理</code> 的特点:</p>
+<ol>
+<li>JDK 原生支持，无需依赖第三方库；</li>
+<li><code>JDK 动态代理</code> 实质上为运行时通过代理对象间接调用目标对象方法达到逻辑切入目的（并不修改原有业务逻辑）</li>
+<li>依赖业务接口。代理对象在生成时强依赖于被代理的业务接口，因此在使用过程中可能会增加不必要的接口定义（不支持方法粒度代理）。</li>
+<li>代理逻辑实现方便，但也过于简陋。对于被代理对象，他的所有方法在调用时都会执行代理逻辑类中的<code>invoke</code>方法，这也说明在唯一的一个<code>invoke</code>方法中必须cover目标对象中所有方法的执行逻辑。很显然，当接口中存在代理逻辑不一致的方法时，这种方式很容易造成不必要的耦合，不便于代理逻辑开发维护（代理逻辑定义时容易耦合）。</li>
+</ol>
+<hr>
+<h2 id="四、总结"><a href="#四、总结" class="headerlink" title="四、总结"></a>四、总结</h2><p>  代理的应用在框架类型的项目开发中是很常见的，其重要性不言而喻。本篇简单介绍了原生的<code>JDK 动态代理</code>，其实现简单，逻辑清晰。可以看出在普通面向接口，切入逻辑简单且统一的代理实现上，<code>JDK 动态代理</code>是一个不错的选择，但是面对更细致的代理场景，如跨接口的方法级别代理需求，<code>JDK 动态代理</code>便显得余力不足了。后面的博文中向大家介绍一个方法级别的代理库—-<code>CGLIB</code>,它也是 <code>spring AOP</code> 代理实现中的重要一员。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+  <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+    <div>您的支持是我不懈创作的最佳鼓励！</div>
+    <button id="rewardButton" disable="enable" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+      <span>赏</span>
+    </button>
+    <div id="QR" style="display: none;">
+      
+        <div id="wechat" style="display: inline-block">
+          <img id="wechat_qr" src="/images/payment/WechatPay.png" alt="Jeffor WeChat Pay"/>
+          <p>微信打赏</p>
+        </div>
+      
+      
+        <div id="alipay" style="display: inline-block">
+          <img id="alipay_qr" src="/images/payment/AliPay.jpeg" alt="Jeffor Alipay"/>
+          <p>支付宝打赏</p>
+        </div>
+      
+    </div>
+  </div>
+
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/aop/" rel="tag"># aop</a>
+          
+            <a href="/tags/proxy/" rel="tag"># proxy</a>
+          
+        </div>
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/02/04/spring-AOP-APIs/" rel="next" title="spring AOP APIs 简述">
+                <i class="fa fa-chevron-left"></i> spring AOP APIs 简述
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+        <!-- JiaThis Button BEGIN -->
+<div class="jiathis_style">
+  <a class="jiathis_button_tsina"></a>
+  <a class="jiathis_button_tqq"></a>
+  <a class="jiathis_button_weixin"></a>
+  <a class="jiathis_button_cqq"></a>
+  <a class="jiathis_button_douban"></a>
+  <a class="jiathis_button_renren"></a>
+  <a class="jiathis_button_qzone"></a>
+  <a class="jiathis_button_kaixin001"></a>
+  <a class="jiathis_button_copy"></a>
+  <a href="http://www.jiathis.com/share" class="jiathis jiathis_txt jiathis_separator jtico jtico_jiathis" target="_blank"></a>
+  <a class="jiathis_counter_style"></a>
+</div>
+<script type="text/javascript" >
+  var jiathis_config={
+    hideMore:false
+  }
+</script>
+<script type="text/javascript" src="http://v3.jiathis.com/code/jia.js" charset="utf-8"></script>
+<!-- JiaThis Button END -->
+
+      
+    </div>
+  </div>
+
+          
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+      <div class="ds-thread" data-thread-key="2017/02/06/JDK-proxy/"
+           data-title="JDK 动态代理机制" data-url="http://yoursite.com/2017/02/06/JDK-proxy/">
+      </div>
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="https://avatars0.githubusercontent.com/u/8755395?v=3&u=8fdbb608a85e62a44c253f15c93266b4c2c3d480&s=100"
+               alt="Jeffor" />
+          <p class="site-author-name" itemprop="name">Jeffor</p>
+          <p class="site-description motion-element" itemprop="description">站在半亩三分地上 coding</p>
+        </div>
+        <nav class="site-state motion-element">
+        
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives">
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-categories">
+              <a href="/categories">
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">分类</span>
+              </a>
+            </div>
+          
+
+          
+            <div class="site-state-item site-state-tags">
+              <a href="/tags">
+                <span class="site-state-item-count">2</span>
+                <span class="site-state-item-name">标签</span>
+              </a>
+            </div>
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+            
+              <span class="links-of-author-item">
+                <a href="https://github.com/jeffor" target="_blank" title="GitHub">
+                  
+                    <i class="fa fa-fw fa-github"></i>
+                  
+                  GitHub
+                </a>
+              </span>
+            
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#简述"><span class="nav-number">1.</span> <span class="nav-text">简述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#一、java-动态代理实现简述"><span class="nav-number">2.</span> <span class="nav-text">一、java 动态代理实现简述</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#UML-类图描述"><span class="nav-number">2.1.</span> <span class="nav-text">- UML 类图描述:</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二、JDK-动态代理样例实现"><span class="nav-number">3.</span> <span class="nav-text">二、JDK 动态代理样例实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#定义业务接口和业务实现类"><span class="nav-number">3.1.</span> <span class="nav-text">- 定义业务接口和业务实现类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代理逻辑定义-InvocationHandler实现"><span class="nav-number">3.2.</span> <span class="nav-text">- 代理逻辑定义(InvocationHandler实现)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#代理对象的创建和使用-Proxy-newProxyInstance"><span class="nav-number">3.3.</span> <span class="nav-text">- 代理对象的创建和使用(Proxy.newProxyInstance())</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#三、JDK-动态代理特性分析"><span class="nav-number">4.</span> <span class="nav-text">三、JDK 动态代理特性分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#四、总结"><span class="nav-number">5.</span> <span class="nav-text">四、总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy;  2016 - 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Jeffor</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Pisces
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    <div class="back-to-top">
+      <i class="fa fa-arrow-up"></i>
+    </div>
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+  
+    
+  
+
+  <script type="text/javascript">
+    var duoshuoQuery = {short_name:"jeffor"};
+    (function() {
+      var ds = document.createElement('script');
+      ds.type = 'text/javascript';ds.async = true;
+      ds.id = 'duoshuo-script';
+      ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+      ds.charset = 'UTF-8';
+      (document.getElementsByTagName('head')[0]
+      || document.getElementsByTagName('body')[0]).appendChild(ds);
+    })();
+  </script>
+
+  
+    
+    
+    <script src="/lib/ua-parser-js/dist/ua-parser.min.js?v=0.7.9"></script>
+    <script src="/js/src/hook-duoshuo.js"></script>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length == 0) {
+      search_path = "search.xml";
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    function proceedsearch() {
+      $("body").append('<div class="popoverlay">').css('overflow', 'hidden');
+      $('.popup').toggle();
+    }
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+      $.ajax({
+        url: path,
+        dataType: "xml",
+        async: true,
+        success: function( xmlResponse ) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = $( "entry", xmlResponse ).map(function() {
+            return {
+              title: $( "title", this ).text(),
+              content: $("content",this).text(),
+              url: $( "url" , this).text()
+            };
+          }).get();
+          var $input = document.getElementById(search_id);
+          var $resultContent = document.getElementById(content_id);
+          $input.addEventListener('input', function(){
+            var matchcounts = 0;
+            var str='<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length > 1) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var content_index = [];
+                var data_title = data.title.trim().toLowerCase();
+                var data_content = data.content.trim().replace(/<[^>]+>/g,"").toLowerCase();
+                var data_url = decodeURIComponent(data.url);
+                var index_title = -1;
+                var index_content = -1;
+                var first_occur = -1;
+                // only match artiles with not empty titles and contents
+                if(data_title != '') {
+                  keywords.forEach(function(keyword, i) {
+                    index_title = data_title.indexOf(keyword);
+                    index_content = data_content.indexOf(keyword);
+                    if( index_title >= 0 || index_content >= 0 ){
+                      isMatch = true;
+                      if (i == 0) {
+                        first_occur = index_content;
+                      }
+                    }
+
+                  });
+                }
+                // show search results
+                if (isMatch) {
+                  matchcounts += 1;
+                  str += "<li><a href='"+ data_url +"' class='search-result-title'>"+ data_title +"</a>";
+                  var content = data.content.trim().replace(/<[^>]+>/g,"");
+                  if (first_occur >= 0) {
+                    // cut out 100 characters
+                    var start = first_occur - 20;
+                    var end = first_occur + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if(start == 0){
+                      end = 50;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    var match_content = content.substring(start, end);
+                    // highlight all keywords
+                    keywords.forEach(function(keyword){
+                      var regS = new RegExp(keyword, "gi");
+                      match_content = match_content.replace(regS, "<b class=\"search-keyword\">"+keyword+"</b>");
+                    });
+
+                    str += "<p class=\"search-result\">" + match_content +"...</p>"
+                  }
+                  str += "</li>";
+                }
+              })};
+            str += "</ul>";
+            if (matchcounts == 0) { str = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>' }
+            if (keywords == "") { str = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>' }
+            $resultContent.innerHTML = str;
+          });
+          proceedsearch();
+        }
+      });}
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched == false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(function(e){
+      $('.popup').hide();
+      $(".popoverlay").remove();
+      $('body').css('overflow', '');
+    });
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+  </script>
+
+
+  
+  
+
+
+  
+
+  
+
+  
+
+
+</body>
+</html>
